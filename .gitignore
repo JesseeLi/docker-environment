@@ -1,7 +1,13 @@
 .DS_Store
 mysql/data/**
+!mysql/data/
 mysql/logs/**
+!mysql/logs/
 nginx/logs/**
+!nginx/logs/
 redis/data/**
+!redis/data/
 redis/logs/**
+!redis/logs/
 work/**
+!work/
