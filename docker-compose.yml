@@ -1,0 +1,73 @@
+
+services:
+  php:
+    build:
+      context: ./php
+    image: myphp:1.0
+    ports:
+      - 9000
+    depends_on:
+      - db
+      - redis
+    networks:
+      - lnmp-data-network
+      - lnmp-network
+    volumes:
+      - ./work:/var/www # 这里要跟 nginx 的保持一致，不知道为什么，不一致会出现 可以解析html 解析不了 php 文件，返回 File not found.
+
+  redis:
+    image: redis:7.2.4-alpine
+    ports:
+      - 16379:6379
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/conf/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./redis/data:/data
+      - ./redis/logs:/var/log/redis
+    networks:
+      - lnmp-data-network
+
+  db:
+    image: mysql:8.0
+    ports:
+      - 3306:3306
+    networks:
+      - lnmp-data-network
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf/my.cnf:/etc/mysql/my.cnf:ro # 挂载自定义配置，并以只读方式配置，方便版本控制查看修改内容
+      - ./mysql/logs:/var/log/mysql
+    restart: always # 容器总是重新启动
+    secrets:
+      - db-password
+    environment:
+      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent localhost:3306 > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  
+  nginx:
+    image: nginx:1.25
+    ports:
+      - 8080:80
+      - 4433:443
+    networks:
+      - lnmp-network
+    volumes:
+      - ./work:/var/www
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - php
+
+
+networks:
+  lnmp-data-network: # 内部数据的网络，php 链接 mysql redis 
+  lnmp-network: # 链接 php nginx  composer create-project laravel/laravel:10.* ./
+  
+secrets:
+  db-password:
+    file: ./mysql/password.txt
